@@ -101,5 +101,8 @@
     <Resource Include="WinMin Startup.xml" />
     <Resource Include="WinMin.xml" />
   </ItemGroup>
+  <ItemGroup>
+  <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
