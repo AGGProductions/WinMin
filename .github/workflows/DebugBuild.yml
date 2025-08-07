@@ -1,37 +1,44 @@
 name: Bleeding Edge Build
+
 on:
   push:
     branches: [ dev, master ]
   pull_request:
     branches: [ dev, master ]
+
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3.1.0
-      
-    - name: Install netfx4sdk -mode package
+
+    - name: Download netfx4sdk release
       run: |
-        git clone https://github.com/3F/netfx4sdk.git
+        Invoke-WebRequest -Uri "https://github.com/3F/netfx4sdk/releases/download/1.2/netfx4sdk.1.2.0.35758.0a15d42.zip" -OutFile "netfx4sdk.zip"
+        Expand-Archive netfx4sdk.zip -DestinationPath netfx4sdk
+
+    - name: Run netfx4sdk -mode package
+      run: |
         cd netfx4sdk
         ./netfx4sdk.cmd -mode package
-      
-    - name: Setup msbuild
+
+    - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v1.1.3
 
     - name: Install Dependencies
       run: msbuild -t:restore
-      
+
     - name: Build Project
       run: msbuild Winmin.sln /t:Build /p:Configuration=Debug
-    
+
     - name: Download Blank Boot.wim
       uses: suisei-cn/actions-download-file@v1.3.0
       with:
         url: https://github.com/awesomegamergame/WinMin/releases/download/0.0.0/boot.wim
         target: ./setup/WinMin/sources/
-    
+
     - name: Copy Built Files
       shell: bash
       run: |
@@ -39,34 +46,34 @@ jobs:
         cp ./WinMin/bin/Debug/Newtonsoft.Json.dll ./setup/"Setup Files"/WinMinFiles/Newtonsoft.Json.dll
         cp ./WinMin/bin/Debug/WinMin.exe ./setup/"Setup Files"/WinMinFiles/WinMin.exe
         cp ./"WinMin Launcher"/bin/Debug/"WinMin Launcher.exe" ./setup/"Setup Files"/WinMinFiles/"WinMin Launcher.exe"
-    
+
     - name: Mount Wim
       run: |
         mkdir ./setup/mount
         dism /mount-image /imagefile:./setup/WinMin/sources/boot.wim /index:1 /mountdir:./setup/mount/
-    
+
     - name: Copy Built Files to Wim
       shell: bash
       run: |
         cp -r ./setup/"Setup Files"/WinMinFiles ./setup/Mount/Windows/System32
         cp ./setup/"Setup Files"/setup.exe ./setup/Mount/Windows/System32
         cp ./setup/Winpeshl.ini ./setup/Mount/Windows/System32
-    
+
     - name: Unmount Wim
       run: dism /unmount-image /mountdir:./setup/Mount /commit
-      
+
     - name: Zip Bootable WinMin
       uses: vimtor/action-zip@v1
       with:
         files: ./setup/WinMin
         dest: ./setup/WinMin.zip
-    
+
     - name: Resolve Short Commit Hash
       if: startsWith(github.ref, 'refs/tags/') == false
       id: get_hash
       shell: bash
       run: echo "hash=`git rev-parse --short HEAD`" >> $GITHUB_OUTPUT
-    
+
     - name: Upload Bootable WinMin.zip
       if: startsWith(github.ref, 'refs/tags/') == false
       uses: actions/upload-artifact@v4.6.1
@@ -79,4 +86,4 @@ jobs:
       uses: actions/upload-artifact@v4.6.1
       with:
         name: WinMinFiles-${{ steps.get_hash.outputs.hash }}
-        path: ./setup/Setup Files/    
+        path: ./setup/Setup Files/
